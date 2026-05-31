@@ -77,6 +77,9 @@ namespace Calendra
             };
 
             _timer.Tick += Timer_Tick;
+
+            // همیشه در حالت باز شده اجرا شود
+            _isExpanded = true;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -84,7 +87,7 @@ namespace Calendra
             UpdateDates();
             UpdateGregorianMonthsHelp();
 
-            CollapseToRightSide();
+            ExpandFromRightSide();
 
             _timer.Start();
 
@@ -394,6 +397,27 @@ namespace Calendra
                 MessageBoxImage.Information);
         }
 
+        // دکمه افزودن به استارتاپ
+        private void AddToStartupButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBoxResult result = WpfMessageBox.Show(
+                "آیا می‌خواهید برنامه به استارتاپ ویندوز اضافه شود؟",
+                "افزودن به استارتاپ",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                EnableStartup();
+
+                WpfMessageBox.Show(
+                    "برنامه با موفقیت به استارتاپ ویندوز اضافه شد.",
+                    "استارتاپ",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+            }
+        }
+
         private static void EnableStartup()
         {
             string? exePath = Environment.ProcessPath;
@@ -416,6 +440,43 @@ namespace Calendra
                 Registry.CurrentUser.CreateSubKey(RunRegistryPath);
 
             runKey?.DeleteValue(RunValueName, false);
+        }
+
+        private void CalendarIconButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenCalendarLinks();
+        }
+
+        private void CalendarTitle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://resna24.ir",
+                UseShellExecute = true
+            });
+        }
+
+        private static void OpenCalendarLinks()
+        {
+            string query = Uri.EscapeDataString("رسنا پشتیبانی شبکه کامپیوتری در کرج و تهران");
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://www.google.com/search?q={query}",
+                UseShellExecute = true
+            });
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://www.time.ir",
+                UseShellExecute = true
+            });
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://resna24.ir",
+                UseShellExecute = true
+            });
         }
 
         private void DateText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

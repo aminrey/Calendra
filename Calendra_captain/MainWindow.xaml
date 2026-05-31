@@ -63,56 +63,101 @@
                             <ColumnDefinition Width="30"/>
                             <ColumnDefinition Width="30"/>
                             <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="30"/>
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Text="Calendra"
+                        <TextBlock Text="Resna24.ir"
                                    Grid.Column="0"
                                    Foreground="#7FA7FF"
                                    FontSize="11"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"
-                                   HorizontalAlignment="Left"/>
+                                   HorizontalAlignment="Left"
+                                   Cursor="Hand"
+                                   ToolTip="باز کردن سایت‌های تقویم و جستجو"
+                                   MouseLeftButtonUp="CalendarTitle_MouseLeftButtonUp"/>
+
+                        <!-- دکمه آیکون تقویم -->
+                        <Button x:Name="CalendarIconButton"
+                                Grid.Column="1"
+                                Width="24"
+                                Height="22"
+                                FontSize="15"
+                                Padding="0"
+                                Margin="2,0,0,0"
+                                Cursor="Hand"
+                                Click="CalendarIconButton_Click"
+                                Background="#22A0A0A0"
+                                Foreground="White"
+                                BorderThickness="0"
+                                ToolTipService.ShowDuration="6000">
+                            <Button.ToolTip>
+                                <ToolTip Content="باز کردن سایت‌های تقویم و جستجو"/>
+                            </Button.ToolTip>
+                            <TextBlock Text="📅" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
 
                         <!-- دکمه راهنمای ماه‌های میلادی -->
                         <Button x:Name="HelpButton"
-                                Grid.Column="1"
+                                Grid.Column="2"
                                 Content="؟"
                                 Width="24"
                                 Height="22"
                                 FontSize="13"
                                 Padding="0"
-                                Margin="2,0"
+                                Margin="2,0,0,0"
                                 Cursor="Hand"
                                 Click="HelpButton_Click"
                                 Background="#223C6CFF"
                                 Foreground="White"
                                 BorderThickness="0"/>
 
-                        <Button Grid.Column="2"
+                        <Button Grid.Column="3"
                                 Content="─"
                                 Width="24"
                                 Height="22"
                                 FontSize="12"
                                 Padding="0"
-                                Margin="2,0"
+                                Margin="2,0,0,0"
                                 Cursor="Hand"
                                 Click="Minimize_Click"
                                 Background="#223C6CFF"
                                 Foreground="White"
                                 BorderThickness="0"/>
 
-                        <Button Grid.Column="3"
+                        <Button Grid.Column="4"
                                 Content="×"
                                 Width="24"
                                 Height="22"
                                 FontSize="14"
                                 Padding="0"
-                                Margin="2,0"
+                                Margin="2,0,0,0"
                                 Cursor="Hand"
                                 Click="Close_Click"
                                 Background="#33FF4D6D"
                                 Foreground="White"
                                 BorderThickness="0"/>
+
+                        <!-- دکمه آیکونی استارتاپ -->
+                        <Button x:Name="AddToStartupButton"
+                                Grid.Column="5"
+                                Width="24"
+                                Height="22"
+                                FontSize="16"
+                                Padding="0"
+                                Margin="2,0,0,0"
+                                Cursor="Hand"
+                                Click="AddToStartupButton_Click"
+                                Background="#2250C850"
+                                Foreground="White"
+                                BorderThickness="0"
+                                ToolTipService.ShowDuration="6000">
+                            <Button.ToolTip>
+                                <ToolTip Content="افزودن برنامه به استارتاپ ویندوز (اجرای خودکار با شروع ویندوز)"/>
+                            </Button.ToolTip>
+                            <TextBlock Text="⚡" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
                     </Grid>
 
                     <!-- تاریخ‌ها -->
