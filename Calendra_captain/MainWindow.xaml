@@ -1,0 +1,226 @@
+﻿<Window x:Class="Calendra.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Calendra"
+        Width="350"
+        Height="104"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        Topmost="True"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Loaded="Window_Loaded"
+        StateChanged="Window_StateChanged">
+
+    <Grid>
+        <Border x:Name="MainBox"
+                CornerRadius="18"
+                Background="#E6111728"
+                BorderBrush="#445D8BFF"
+                BorderThickness="1">
+
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="نمایش / مخفی کردن" Click="ToggleMenu_Click"/>
+                    <MenuItem Header="تازه‌سازی جایگاه" Click="RefreshPosition_Click"/>
+                    <Separator/>
+                    <MenuItem Header="فعال‌سازی اجرای خودکار" Click="EnableStartup_Click"/>
+                    <MenuItem Header="حذف از اجرای خودکار" Click="DisableStartup_Click"/>
+                    <Separator/>
+                    <MenuItem Header="بستن Calendra" Click="Exit_Click"/>
+                </ContextMenu>
+            </Border.ContextMenu>
+
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="22"
+                                  ShadowDepth="0"
+                                  Opacity="0.42"/>
+            </Border.Effect>
+
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="42"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- بخش اصلی برنامه -->
+                <Grid x:Name="DatePanel"
+                      Grid.Column="0"
+                      Margin="14,6,8,8">
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="26"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- نوار بالایی -->
+                    <Grid Grid.Row="0"
+                          MouseLeftButtonDown="Header_MouseLeftButtonDown">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="30"/>
+                            <ColumnDefinition Width="30"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Calendra"
+                                   Grid.Column="0"
+                                   Foreground="#7FA7FF"
+                                   FontSize="11"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Left"/>
+
+                        <!-- دکمه راهنمای ماه‌های میلادی -->
+                        <Button x:Name="HelpButton"
+                                Grid.Column="1"
+                                Content="؟"
+                                Width="24"
+                                Height="22"
+                                FontSize="13"
+                                Padding="0"
+                                Margin="2,0"
+                                Cursor="Hand"
+                                Click="HelpButton_Click"
+                                Background="#223C6CFF"
+                                Foreground="White"
+                                BorderThickness="0"/>
+
+                        <Button Grid.Column="2"
+                                Content="─"
+                                Width="24"
+                                Height="22"
+                                FontSize="12"
+                                Padding="0"
+                                Margin="2,0"
+                                Cursor="Hand"
+                                Click="Minimize_Click"
+                                Background="#223C6CFF"
+                                Foreground="White"
+                                BorderThickness="0"/>
+
+                        <Button Grid.Column="3"
+                                Content="×"
+                                Width="24"
+                                Height="22"
+                                FontSize="14"
+                                Padding="0"
+                                Margin="2,0"
+                                Cursor="Hand"
+                                Click="Close_Click"
+                                Background="#33FF4D6D"
+                                Foreground="White"
+                                BorderThickness="0"/>
+                    </Grid>
+
+                    <!-- تاریخ‌ها -->
+                    <StackPanel Grid.Row="1"
+                                VerticalAlignment="Center">
+
+                        <TextBlock x:Name="PersianDateText"
+                                   Text="شمسی: ----/--/--"
+                                   Foreground="#FFFFFF"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   FlowDirection="RightToLeft"
+                                   MouseLeftButtonUp="DateText_MouseLeftButtonUp"/>
+
+                        <TextBlock x:Name="GregorianDateText"
+                                   Text="میلادی: ----/--/--"
+                                   Foreground="#B8C7E8"
+                                   FontSize="13"
+                                   Margin="0,6,0,0"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   FlowDirection="LeftToRight"
+                                   MouseLeftButtonUp="DateText_MouseLeftButtonUp"/>
+                        <TextBlock x:Name="GregorianMonthDayText"
+                                   Text=""
+                                   Foreground="#B8C7E8"
+                                   FontSize="12"
+                                   Margin="0,0,0,0"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   FlowDirection="LeftToRight"/>
+
+                    </StackPanel>
+
+                    <!-- پنجره کوچک راهنما -->
+                    <Popup x:Name="MonthsPopup"
+                           PlacementTarget="{Binding ElementName=HelpButton}"
+                           Placement="Top"
+                           StaysOpen="False"
+                           AllowsTransparency="True"
+                           PopupAnimation="Fade">
+
+                        <Border Background="#F1111728"
+                                BorderBrush="#665D8BFF"
+                                BorderThickness="1"
+                                CornerRadius="14"
+                                Padding="12"
+                                Width="265">
+
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="18"
+                                                  ShadowDepth="0"
+                                                  Opacity="0.45"/>
+                            </Border.Effect>
+
+                            <StackPanel>
+                                <TextBlock Text="ترتیب ماه‌های میلادی"
+                                           Foreground="#FFFFFF"
+                                           FontSize="13"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Margin="0,0,0,8"/>
+
+                                <TextBlock x:Name="GregorianMonthsHelpText"
+                                           Foreground="#DDE7FF"
+                                           FontSize="12"
+                                           LineHeight="19"
+                                           TextAlignment="Left"
+                                           FlowDirection="LeftToRight"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                </Grid>
+
+                <!-- زبانه باز و بسته شدن -->
+                <Border Grid.Column="1"
+                        x:Name="ToggleHandle"
+                        Background="#223C6CFF"
+                        CornerRadius="0,18,18,0"
+                        MouseLeftButtonDown="ToggleHandle_MouseLeftButtonDown"
+                        Cursor="Hand">
+
+                    <StackPanel VerticalAlignment="Center"
+                                HorizontalAlignment="Center">
+
+                        <TextBlock x:Name="ArrowText"
+                                   Text="‹"
+                                   Foreground="White"
+                                   FontSize="24"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"/>
+
+                        <TextBlock x:Name="SmallLabelText"
+                                   Text="Cal"
+                                   Foreground="#DDE7FF"
+                                   FontSize="10"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   Margin="0,1,0,0"/>
+
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
