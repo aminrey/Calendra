@@ -34,6 +34,7 @@ namespace Calendra
         private bool _isExpanded = false;
         private bool _stateBeforeMinimize = false;
         private bool _isRestoringFromMinimize = false;
+        private Forms.NotifyIcon? _notifyIcon;
 
         private readonly string[] _persianMonthNames =
         {
@@ -80,6 +81,8 @@ namespace Calendra
 
             // همیشه در حالت باز شده اجرا شود
             _isExpanded = true;
+
+            InitializeTrayIcon();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -102,10 +105,7 @@ namespace Calendra
 
             if (WindowState != WindowState.Minimized)
             {
-                if (_isExpanded)
-                    ExpandFromRightSide();
-                else
-                    CollapseToRightSide();
+                UpdateLayoutForCurrentMode();
             }
         }
 
@@ -203,9 +203,32 @@ namespace Calendra
         private void ToggleVisibility()
         {
             if (_isExpanded)
-                CollapseToRightSide();
+                CollapseAtCurrentPosition();
             else
-                ExpandFromRightSide();
+                ExpandAtCurrentPosition();
+        }
+
+        private void InitializeTrayIcon()
+        {
+            _notifyIcon = new Forms.NotifyIcon
+            {
+                Icon = System.Drawing.SystemIcons.Application,
+                Text = "Calendra",
+                Visible = true,
+                ContextMenuStrip = new Forms.ContextMenuStrip()
+            };
+
+            _notifyIcon.ContextMenuStrip.Items.Add("نمایش برنامه", null, (_, _) => ShowFromTray());
+            _notifyIcon.ContextMenuStrip.Items.Add("مخفی کردن", null, (_, _) => HideToTray());
+            _notifyIcon.ContextMenuStrip.Items.Add(new Forms.ToolStripSeparator());
+            _notifyIcon.ContextMenuStrip.Items.Add("بستن Calendra", null, (_, _) => Dispatcher.Invoke(() => SW.Application.Current.Shutdown()));
+            _notifyIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowFromTray);
+
+            Closed += (_, _) =>
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+            };
         }
 
         private void ExpandFromRightSide()
@@ -220,6 +243,25 @@ namespace Calendra
 
             Left = workArea.Right - Width - RightMargin;
             Top = workArea.Bottom - Height - BottomMargin;
+
+            _isExpanded = true;
+
+            ArrowText.Text = "›";
+            ToggleHandle.CornerRadius = new CornerRadius(0, 18, 18, 0);
+            MainBox.CornerRadius = new CornerRadius(18);
+        }
+
+        private void ExpandAtCurrentPosition()
+        {
+            double right = Left + Width;
+
+            Width = ExpandedWidth;
+            Height = ExpandedHeight;
+
+            DatePanel.Visibility = Visibility.Visible;
+            SmallLabelText.Visibility = Visibility.Visible;
+
+            Left = right - Width;
 
             _isExpanded = true;
 
@@ -245,6 +287,49 @@ namespace Calendra
 
             ArrowText.Text = "‹";
             ToggleHandle.CornerRadius = new CornerRadius(18);
+            MainBox.CornerRadius = new CornerRadius(18);
+        }
+
+        private void CollapseAtCurrentPosition()
+        {
+            double right = Left + Width;
+
+            Width = CollapsedWidth;
+            Height = CollapsedHeight;
+
+            DatePanel.Visibility = Visibility.Collapsed;
+            SmallLabelText.Visibility = Visibility.Collapsed;
+
+            Left = right - Width;
+
+            _isExpanded = false;
+
+            ArrowText.Text = "‹";
+            ToggleHandle.CornerRadius = new CornerRadius(18);
+            MainBox.CornerRadius = new CornerRadius(18);
+        }
+
+        private void UpdateLayoutForCurrentMode()
+        {
+            if (_isExpanded)
+            {
+                Width = ExpandedWidth;
+                Height = ExpandedHeight;
+                DatePanel.Visibility = Visibility.Visible;
+                SmallLabelText.Visibility = Visibility.Visible;
+                ArrowText.Text = "›";
+                ToggleHandle.CornerRadius = new CornerRadius(0, 18, 18, 0);
+            }
+            else
+            {
+                Width = CollapsedWidth;
+                Height = CollapsedHeight;
+                DatePanel.Visibility = Visibility.Collapsed;
+                SmallLabelText.Visibility = Visibility.Collapsed;
+                ArrowText.Text = "‹";
+                ToggleHandle.CornerRadius = new CornerRadius(18);
+            }
+
             MainBox.CornerRadius = new CornerRadius(18);
         }
 
@@ -282,11 +367,17 @@ namespace Calendra
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
             _stateBeforeMinimize = _isExpanded;
-            WindowState = WindowState.Minimized;
+            HideToTray();
         }
 
         private void Window_StateChanged(object? sender, EventArgs e)
         {
+            if (WindowState == WindowState.Minimized)
+            {
+                HideToTray();
+                return;
+            }
+
             if (WindowState == WindowState.Normal)
             {
                 if (_isRestoringFromMinimize)
@@ -300,13 +391,32 @@ namespace Calendra
                     Activate();
 
                     if (_stateBeforeMinimize)
-                        ExpandFromRightSide();
+                        ExpandAtCurrentPosition();
                     else
-                        CollapseToRightSide();
+                        CollapseAtCurrentPosition();
 
                     _isRestoringFromMinimize = false;
                 }), DispatcherPriority.ApplicationIdle);
             }
+        }
+
+        private void HideToTray()
+        {
+            _stateBeforeMinimize = _isExpanded;
+            Hide();
+        }
+
+        private void ShowFromTray()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Topmost = true;
+            Activate();
+
+            if (_stateBeforeMinimize)
+                ExpandAtCurrentPosition();
+            else
+                CollapseAtCurrentPosition();
         }
 
         private void Close_Click(object sender, RoutedEventArgs e)

@@ -6,7 +6,7 @@
         Height="104"
         WindowStyle="None"
         ResizeMode="NoResize"
-        ShowInTaskbar="True"
+        ShowInTaskbar="False"
         Topmost="True"
         AllowsTransparency="True"
         Background="Transparent"
