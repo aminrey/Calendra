@@ -68,6 +68,22 @@ namespace Calendra
             "December"
         };
 
+        private readonly string[] _gregorianMonthNamesFa =
+        {
+            "ژانویه",
+            "فوریه",
+            "مارس",
+            "آوریل",
+            "مه",
+            "ژوئن",
+            "ژوئیه",
+            "آگوست",
+            "سپتامبر",
+            "اکتبر",
+            "نوامبر",
+            "دسامبر"
+        };
+
         public MainWindow()
         {
             InitializeComponent();
@@ -88,7 +104,6 @@ namespace Calendra
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateDates();
-            UpdateGregorianMonthsHelp();
 
             ExpandFromRightSide();
 
@@ -138,25 +153,42 @@ namespace Calendra
             // نام ماه و نام روز میلادی (انگلیسی) و فارسی
             string gregorianMonthDay = $"{gregorianMonthName} {gregorianDayName} / {gregorianDayNameFa}";
             GregorianMonthDayText.Text = gregorianMonthDay;
+
+            UpdateGregorianMonthsHelp(now);
         }
 
-        private void UpdateGregorianMonthsHelp()
+        private void UpdateGregorianMonthsHelp(DateTime now)
         {
-            string text =
-                "01 - January / ژانویه\n" +
-                "02 - February / فوریه\n" +
-                "03 - March / مارس\n" +
-                "04 - April / آوریل\n" +
-                "05 - May / می\n" +
-                "06 - June / ژوئن\n" +
-                "07 - July / ژوئیه\n" +
-                "08 - August / آگوست\n" +
-                "09 - September / سپتامبر\n" +
-                "10 - October / اکتبر\n" +
-                "11 - November / نوامبر\n" +
-                "12 - December / دسامبر";
+            string[] monthLines = new string[12];
 
-            GregorianMonthsHelpText.Text = text;
+            for (int month = 1; month <= 12; month++)
+            {
+                int daysInMonth = DateTime.DaysInMonth(now.Year, month);
+                string days = ToPersianDigits(daysInMonth.ToString(CultureInfo.InvariantCulture));
+
+                monthLines[month - 1] =
+                    $"{month:00} - {_gregorianMonthNames[month - 1]} / " +
+                    $"{_gregorianMonthNamesFa[month - 1]} — {days} روز";
+            }
+
+            GregorianMonthsTitleText.Text =
+                $"تعداد روزهای ماه‌های میلادی {ToPersianDigits(now.Year.ToString(CultureInfo.InvariantCulture))}";
+            GregorianMonthsHelpText.Text = string.Join(Environment.NewLine, monthLines);
+
+            DateTime startOfNextMonth =
+                new DateTime(now.Year, now.Month, 1).AddMonths(1);
+            TimeSpan remaining = startOfNextMonth - now;
+
+            string remainingDays =
+                ToPersianDigits(((int)remaining.TotalDays).ToString(CultureInfo.InvariantCulture));
+            string remainingHours =
+                ToPersianDigits(remaining.Hours.ToString(CultureInfo.InvariantCulture));
+            string remainingMinutes =
+                ToPersianDigits(remaining.Minutes.ToString(CultureInfo.InvariantCulture));
+
+            MonthCountdownText.Text =
+                $"{_gregorianMonthNamesFa[now.Month - 1]}: " +
+                $"{remainingDays} روز و {remainingHours} ساعت و {remainingMinutes} دقیقه";
         }
 
         private static string GetPersianDayName(DayOfWeek dayOfWeek)

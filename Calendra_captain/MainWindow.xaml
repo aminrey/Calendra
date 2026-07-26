@@ -111,7 +111,8 @@
                                 Click="HelpButton_Click"
                                 Background="#223C6CFF"
                                 Foreground="White"
-                                BorderThickness="0"/>
+                                BorderThickness="0"
+                                ToolTip="تعداد روزهای ماه‌ها و زمان باقی‌مانده تا پایان ماه"/>
 
                         <Button Grid.Column="3"
                                 Content="─"
@@ -207,7 +208,7 @@
                                 BorderThickness="1"
                                 CornerRadius="14"
                                 Padding="12"
-                                Width="265">
+                                Width="330">
 
                             <Border.Effect>
                                 <DropShadowEffect BlurRadius="18"
@@ -216,7 +217,8 @@
                             </Border.Effect>
 
                             <StackPanel>
-                                <TextBlock Text="ترتیب ماه‌های میلادی"
+                                <TextBlock x:Name="GregorianMonthsTitleText"
+                                           Text="تعداد روزهای ماه‌های میلادی"
                                            Foreground="#FFFFFF"
                                            FontSize="13"
                                            FontWeight="Bold"
@@ -229,6 +231,25 @@
                                            LineHeight="19"
                                            TextAlignment="Left"
                                            FlowDirection="LeftToRight"/>
+
+                                <Border Height="1"
+                                        Margin="0,10,0,9"
+                                        Background="#445D8BFF"/>
+
+                                <TextBlock Text="زمان باقی‌مانده تا پایان ماه جاری"
+                                           Foreground="#9FB9F2"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"
+                                           FlowDirection="RightToLeft"/>
+
+                                <TextBlock x:Name="MonthCountdownText"
+                                           Foreground="#FFFFFF"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"
+                                           Margin="0,5,0,0"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           FlowDirection="RightToLeft"/>
                             </StackPanel>
                         </Border>
                     </Popup>
