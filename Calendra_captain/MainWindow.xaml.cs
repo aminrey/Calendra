@@ -17,8 +17,8 @@ namespace Calendra
         private readonly DispatcherTimer _timer;
         private readonly PersianCalendar _persianCalendar = new PersianCalendar();
 
-        private const double ExpandedWidth = 350;
-        private const double ExpandedHeight = 104;
+        private const double ExpandedWidth = 300;
+        private const double ExpandedHeight = 78;
 
         private const double CollapsedWidth = 42;
         private const double CollapsedHeight = 52;
@@ -84,6 +84,17 @@ namespace Calendra
             "دسامبر"
         };
 
+        private readonly (string Name, string TimeZoneId)[] _usTimeZones =
+        {
+            ("شرق آمریکا (نیویورک)", "Eastern Standard Time"),
+            ("مرکز آمریکا (شیکاگو)", "Central Standard Time"),
+            ("کوهستان (دنور)", "Mountain Standard Time"),
+            ("آریزونا (فینیکس)", "US Mountain Standard Time"),
+            ("غرب آمریکا (لس‌آنجلس)", "Pacific Standard Time"),
+            ("آلاسکا (انکوریج)", "Alaskan Standard Time"),
+            ("هاوایی (هونولولو)", "Hawaiian Standard Time")
+        };
+
         public MainWindow()
         {
             InitializeComponent();
@@ -133,10 +144,7 @@ namespace Calendra
             int persianDay = _persianCalendar.GetDayOfMonth(now);
 
             string persianDate = $"{persianYear:0000}/{persianMonth:00}/{persianDay:00}";
-            PersianDateText.Text = "شمسی: " + ToPersianDigits(persianDate);
-
-            string gregorianDayName =
-                now.ToString("dddd", CultureInfo.InvariantCulture);
+            PersianDateText.Text = "ش: " + ToPersianDigits(persianDate);
 
             int gregorianYear = now.Year;
             int gregorianMonth = now.Month;
@@ -146,15 +154,10 @@ namespace Calendra
 
             // تاریخ میلادی به صورت عددی
             string gregorianDateNumeric = $"{gregorianYear:0000}/{gregorianMonth:00}/{gregorianDay:00}";
-            GregorianDateText.Text = "میلادی: " + gregorianDateNumeric;
-
-            // نام روز میلادی به فارسی
-            string gregorianDayNameFa = GetPersianDayName(now.DayOfWeek);
-            // نام ماه و نام روز میلادی (انگلیسی) و فارسی
-            string gregorianMonthDay = $"{gregorianMonthName} {gregorianDayName} / {gregorianDayNameFa}";
-            GregorianMonthDayText.Text = gregorianMonthDay;
+            GregorianDateText.Text = "م: " + gregorianDateNumeric;
 
             UpdateGregorianMonthsHelp(now);
+            UpdateUsWeekCountdown();
         }
 
         private void UpdateGregorianMonthsHelp(DateTime now)
@@ -189,6 +192,73 @@ namespace Calendra
             MonthCountdownText.Text =
                 $"{_gregorianMonthNamesFa[now.Month - 1]}: " +
                 $"{remainingDays} روز و {remainingHours} ساعت و {remainingMinutes} دقیقه";
+        }
+
+        private void UpdateUsWeekCountdown()
+        {
+            DateTimeOffset utcNow = DateTimeOffset.UtcNow;
+            TimeZoneInfo iranTimeZone =
+                TimeZoneInfo.FindSystemTimeZoneById("Iran Standard Time");
+            TimeSpan iranOffset = iranTimeZone.GetUtcOffset(utcNow);
+            string[] lines = new string[_usTimeZones.Length];
+
+            for (int index = 0; index < _usTimeZones.Length; index++)
+            {
+                var zoneInfo = _usTimeZones[index];
+                TimeZoneInfo usTimeZone =
+                    TimeZoneInfo.FindSystemTimeZoneById(zoneInfo.TimeZoneId);
+                DateTimeOffset localNow =
+                    TimeZoneInfo.ConvertTime(utcNow, usTimeZone);
+
+                // در تقویم رایج آمریکا، هفته در پایان شنبه تمام می‌شود.
+                int daysUntilNextSunday = 7 - (int)localNow.DayOfWeek;
+                DateTime localWeekEnd = DateTime.SpecifyKind(
+                    localNow.Date.AddDays(daysUntilNextSunday),
+                    DateTimeKind.Unspecified);
+                DateTime weekEndUtc =
+                    TimeZoneInfo.ConvertTimeToUtc(localWeekEnd, usTimeZone);
+                TimeSpan remaining = weekEndUtc - utcNow.UtcDateTime;
+
+                if (remaining < TimeSpan.Zero)
+                    remaining = TimeSpan.Zero;
+
+                TimeSpan iranDifference =
+                    iranOffset - usTimeZone.GetUtcOffset(utcNow);
+
+                string localTime =
+                    ToPersianDigits(localNow.ToString("HH:mm", CultureInfo.InvariantCulture));
+                string difference = FormatIranTimeDifference(iranDifference);
+                string countdown = FormatRemainingTime(remaining);
+
+                lines[index] =
+                    $"{zoneInfo.Name}: ساعت {localTime}  |  {difference}  |  {countdown} مانده";
+            }
+
+            UsWeekCountdownText.Text = string.Join(Environment.NewLine, lines);
+        }
+
+        private static string FormatIranTimeDifference(TimeSpan difference)
+        {
+            TimeSpan absoluteDifference = difference.Duration();
+            string hours =
+                ToPersianDigits(((int)absoluteDifference.TotalHours).ToString(CultureInfo.InvariantCulture));
+            string minutes =
+                ToPersianDigits(absoluteDifference.Minutes.ToString("00", CultureInfo.InvariantCulture));
+            string direction = difference >= TimeSpan.Zero ? "جلوتر" : "عقب‌تر";
+
+            return $"ایران {hours}:{minutes} {direction}";
+        }
+
+        private static string FormatRemainingTime(TimeSpan remaining)
+        {
+            string days =
+                ToPersianDigits(((int)remaining.TotalDays).ToString(CultureInfo.InvariantCulture));
+            string hours =
+                ToPersianDigits(remaining.Hours.ToString(CultureInfo.InvariantCulture));
+            string minutes =
+                ToPersianDigits(remaining.Minutes.ToString(CultureInfo.InvariantCulture));
+
+            return $"{days} روز و {hours} ساعت و {minutes} دقیقه";
         }
 
         private static string GetPersianDayName(DayOfWeek dayOfWeek)
@@ -244,7 +314,7 @@ namespace Calendra
         {
             _notifyIcon = new Forms.NotifyIcon
             {
-                Icon = System.Drawing.SystemIcons.Application,
+                Icon = GetApplicationIcon(),
                 Text = "Calendra",
                 Visible = true,
                 ContextMenuStrip = new Forms.ContextMenuStrip()
@@ -261,6 +331,22 @@ namespace Calendra
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
             };
+        }
+
+        private static System.Drawing.Icon GetApplicationIcon()
+        {
+            string? executablePath = Environment.ProcessPath;
+
+            if (!string.IsNullOrWhiteSpace(executablePath))
+            {
+                System.Drawing.Icon? applicationIcon =
+                    System.Drawing.Icon.ExtractAssociatedIcon(executablePath);
+
+                if (applicationIcon != null)
+                    return applicationIcon;
+            }
+
+            return System.Drawing.SystemIcons.Application;
         }
 
         private void ExpandFromRightSide()
