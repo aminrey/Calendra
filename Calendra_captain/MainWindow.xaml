@@ -11,14 +11,28 @@
         AllowsTransparency="True"
         Background="Transparent"
         Loaded="Window_Loaded"
-        StateChanged="Window_StateChanged">
+        StateChanged="Window_StateChanged"
+        PreviewMouseLeftButtonDown="Window_PreviewMouseLeftButtonDown"
+        PreviewMouseMove="Window_PreviewMouseMove"
+        PreviewMouseLeftButtonUp="Window_PreviewMouseLeftButtonUp">
 
     <Grid>
         <Border x:Name="MainBox"
                 CornerRadius="18"
                 Background="#E6111728"
                 BorderBrush="#445D8BFF"
-                BorderThickness="1">
+                BorderThickness="1"
+                RenderTransformOrigin="0.5,0.5">
+
+            <Border.RenderTransform>
+                <TransformGroup>
+                    <ScaleTransform x:Name="MainScaleTransform"
+                                    ScaleX="1"
+                                    ScaleY="1"/>
+                    <RotateTransform x:Name="MainRotateTransform"
+                                     Angle="0"/>
+                </TransformGroup>
+            </Border.RenderTransform>
 
             <Border.ContextMenu>
                 <ContextMenu>
@@ -33,7 +47,8 @@
             </Border.ContextMenu>
 
             <Border.Effect>
-                <DropShadowEffect BlurRadius="22"
+                <DropShadowEffect x:Name="MainShadow"
+                                  BlurRadius="22"
                                   ShadowDepth="0"
                                   Opacity="0.42"/>
             </Border.Effect>
@@ -55,22 +70,22 @@
                     </Grid.RowDefinitions>
 
                     <!-- نوار بالایی -->
-                    <Grid Grid.Row="0"
-                          MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                    <Grid Grid.Row="0">
 
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="24"/>
-                            <ColumnDefinition Width="24"/>
-                            <ColumnDefinition Width="24"/>
-                            <ColumnDefinition Width="24"/>
-                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="22"/>
+                            <ColumnDefinition Width="22"/>
+                            <ColumnDefinition Width="22"/>
+                            <ColumnDefinition Width="22"/>
+                            <ColumnDefinition Width="22"/>
+                            <ColumnDefinition Width="22"/>
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Text="Resna24.ir"
                                    Grid.Column="0"
                                    Foreground="#7FA7FF"
-                                   FontSize="9"
+                                   FontSize="18"
                                    FontWeight="SemiBold"
                                    VerticalAlignment="Center"
                                    HorizontalAlignment="Left"
@@ -114,7 +129,23 @@
                                 BorderThickness="0"
                                 ToolTip="تعداد روزهای ماه‌ها، پایان ماه و پایان هفته آمریکا"/>
 
-                        <Button Grid.Column="3"
+                        <!-- تنظیمات شخصیت انیمیشن Minimize -->
+                        <Button x:Name="SettingsButton"
+                                Grid.Column="3"
+                                Content="⚙"
+                                Width="20"
+                                Height="20"
+                                FontSize="12"
+                                Padding="0"
+                                Margin="2,0,0,0"
+                                Cursor="Hand"
+                                Click="SettingsButton_Click"
+                                Background="#224FC3F7"
+                                Foreground="White"
+                                BorderThickness="0"
+                                ToolTip="تنظیم شخصیت و شوخی Minimize"/>
+
+                        <Button Grid.Column="4"
                                 Content="─"
                                 Width="20"
                                 Height="20"
@@ -127,7 +158,7 @@
                                 Foreground="White"
                                 BorderThickness="0"/>
 
-                        <Button Grid.Column="4"
+                        <Button Grid.Column="5"
                                 Content="×"
                                 Width="20"
                                 Height="20"
@@ -142,7 +173,7 @@
 
                         <!-- دکمه آیکونی استارتاپ -->
                         <Button x:Name="AddToStartupButton"
-                                Grid.Column="5"
+                                Grid.Column="6"
                                 Width="20"
                                 Height="20"
                                 FontSize="13"
@@ -172,9 +203,9 @@
 
                         <TextBlock x:Name="GregorianDateText"
                                    Grid.Column="0"
-                                   Text="م: ----/--/--"
+                                   Text="----/--/--"
                                    Foreground="#B8C7E8"
-                                   FontSize="10"
+                                   FontSize="20"
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
@@ -183,9 +214,9 @@
 
                         <TextBlock x:Name="PersianDateText"
                                    Grid.Column="1"
-                                   Text="ش: ----/--/--"
+                                   Text="----/--/--"
                                    Foreground="#FFFFFF"
-                                   FontSize="10"
+                                   FontSize="20"
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
@@ -275,6 +306,97 @@
                             </ScrollViewer>
                         </Border>
                     </Popup>
+
+                    <!-- تنظیمات شخصیت و شوخی انیمیشن Minimize -->
+                    <Popup x:Name="SettingsPopup"
+                           PlacementTarget="{Binding ElementName=SettingsButton}"
+                           Placement="Top"
+                           StaysOpen="False"
+                           AllowsTransparency="True"
+                           PopupAnimation="Fade">
+
+                        <Border Background="#FA111827"
+                                BorderBrush="#885D8BFF"
+                                BorderThickness="1"
+                                CornerRadius="16"
+                                Padding="14"
+                                Width="315">
+
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="24"
+                                                  ShadowDepth="0"
+                                                  Opacity="0.55"/>
+                            </Border.Effect>
+
+                            <StackPanel FlowDirection="RightToLeft">
+                                <TextBlock Text="شخصیت انیمیشن Minimize"
+                                           Foreground="White"
+                                           FontSize="15"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"/>
+
+                                <TextBlock Text="هر انتخاب همان لحظه در config.txt ذخیره می‌شود."
+                                           Foreground="#9FB9F2"
+                                           FontSize="10"
+                                           TextAlignment="Center"
+                                           Margin="0,4,0,11"/>
+
+                                <RadioButton x:Name="RandomModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="Random"
+                                             Content="🎲 رندوم — هر بار یک شخصیت متفاوت"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+
+                                <RadioButton x:Name="HeartbrokenHeroModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="HeartbrokenHero"
+                                             Content="💔 قهرمان دل‌شکسته"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+
+                                <RadioButton x:Name="BollywoodModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="Bollywood"
+                                             Content="🌹 فیلم هندی"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+
+                                <RadioButton x:Name="SpaceHeroModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="SpaceHero"
+                                             Content="🚀 قهرمان فضایی"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+
+                                <RadioButton x:Name="DigitalPetModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="DigitalPet"
+                                             Content="🐾 حیوان خانگی دیجیتال"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+
+                                <RadioButton x:Name="OfficeWorkerModeRadio"
+                                             GroupName="MinimizeMode"
+                                             Tag="OfficeWorker"
+                                             Content="☕ کارمند مظلوم"
+                                             Foreground="White"
+                                             FontSize="12"
+                                             Margin="3"
+                                             Click="MinimizeModeRadio_Click"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
                 </Grid>
 
                 <!-- زبانه باز و بسته شدن -->
@@ -282,7 +404,6 @@
                         x:Name="ToggleHandle"
                         Background="#223C6CFF"
                         CornerRadius="0,18,18,0"
-                        MouseLeftButtonDown="ToggleHandle_MouseLeftButtonDown"
                         Cursor="Hand">
 
                     <StackPanel VerticalAlignment="Center"
@@ -299,7 +420,7 @@
                         <TextBlock x:Name="SmallLabelText"
                                    Text="Cal"
                                    Foreground="#DDE7FF"
-                                   FontSize="8"
+                                   FontSize="16"
                                    FontWeight="SemiBold"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
