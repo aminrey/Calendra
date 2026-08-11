@@ -60,7 +60,8 @@ namespace Calendra
 
         private const double RightMargin = 8;
         private const double BottomMargin = 12;
-        private const int DialogueDurationMilliseconds = 1800;
+        private const int DialogueDurationMilliseconds = 3600;
+        private const int DialogueFadeDurationMilliseconds = 350;
         private const int FlightDurationMilliseconds = 700;
         private const int MinimizeAnimationDurationMilliseconds =
             DialogueDurationMilliseconds + FlightDurationMilliseconds;
@@ -258,6 +259,7 @@ namespace Calendra
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             UpdateDates();
+            UpdateStartupButtonState();
 
             ExpandFromRightSide();
 
@@ -1166,7 +1168,8 @@ namespace Calendra
             opacityAnimation.KeyFrames.Add(
                 new DiscreteDoubleKeyFrame(
                     1,
-                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(1450))));
+                    KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(
+                        DialogueDurationMilliseconds - DialogueFadeDurationMilliseconds))));
             opacityAnimation.KeyFrames.Add(
                 new LinearDoubleKeyFrame(
                     0,
@@ -1568,6 +1571,7 @@ namespace Calendra
                 if (result == MessageBoxResult.Yes)
                 {
                     EnableStartup();
+                    UpdateStartupButtonState();
                 }
 
                 appKey?.SetValue(
@@ -1588,6 +1592,7 @@ namespace Calendra
         private void EnableStartup_Click(object sender, RoutedEventArgs e)
         {
             EnableStartup();
+            UpdateStartupButtonState();
 
             WpfMessageBox.Show(
                 "اجرای خودکار Calendra با شروع ویندوز فعال شد.",
@@ -1598,33 +1603,174 @@ namespace Calendra
 
         private void DisableStartup_Click(object sender, RoutedEventArgs e)
         {
-            DisableStartup();
+            bool wasRemoved = DisableStartup();
+            UpdateStartupButtonState();
 
             WpfMessageBox.Show(
-                "اجرای خودکار Calendra حذف شد.",
+                wasRemoved
+                    ? "اجرای خودکار همین نسخه Calendra حذف شد."
+                    : "این نسخه با آدرس فعلی در اجرای خودکار ثبت نیست؛ چیزی حذف نشد.",
                 "Calendra",
                 MessageBoxButton.OK,
-                MessageBoxImage.Information);
+                wasRemoved
+                    ? MessageBoxImage.Information
+                    : MessageBoxImage.Warning);
         }
 
-        // دکمه افزودن به استارتاپ
+        // دکمه دوحالته افزودن یا حذف همین فایل اجرایی از استارتاپ
         private void AddToStartupButton_Click(object sender, RoutedEventArgs e)
         {
-            MessageBoxResult result = WpfMessageBox.Show(
-                "آیا می‌خواهید برنامه به استارتاپ ویندوز اضافه شود؟",
-                "افزودن به استارتاپ",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Yes)
+            try
             {
-                EnableStartup();
+                if (IsCurrentExecutableRegisteredForStartup())
+                {
+                    MessageBoxResult removeResult = WpfMessageBox.Show(
+                        "همین نسخه از برنامه با همین آدرس در اجرای خودکار ویندوز فعال است.\n\n" +
+                        "آیا می‌خواهید از اجرای خودکار خارج شود؟",
+                        "حذف از اجرای خودکار",
+                        MessageBoxButton.YesNo,
+                        MessageBoxImage.Question,
+                        MessageBoxResult.No);
 
+                    if (removeResult == MessageBoxResult.Yes)
+                    {
+                        bool wasRemoved = DisableStartup();
+                        UpdateStartupButtonState();
+
+                        WpfMessageBox.Show(
+                            wasRemoved
+                                ? "همین نسخه از اجرای خودکار ویندوز خارج شد."
+                                : "مسیر ثبت‌شده تغییر کرده بود؛ برای امنیت چیزی حذف نشد.",
+                            "اجرای خودکار",
+                            MessageBoxButton.OK,
+                            wasRemoved
+                                ? MessageBoxImage.Information
+                                : MessageBoxImage.Warning);
+                    }
+
+                    return;
+                }
+
+                MessageBoxResult addResult = WpfMessageBox.Show(
+                    "این فایل اجرایی با آدرس فعلی در اجرای خودکار ویندوز ثبت نشده است.\n\n" +
+                    "آیا می‌خواهید همین نسخه اضافه شود؟",
+                    "افزودن به اجرای خودکار",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question,
+                    MessageBoxResult.Yes);
+
+                if (addResult == MessageBoxResult.Yes)
+                {
+                    EnableStartup();
+                    UpdateStartupButtonState();
+
+                    WpfMessageBox.Show(
+                        "همین نسخه با آدرس فعلی به اجرای خودکار ویندوز اضافه شد.",
+                        "اجرای خودکار",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
                 WpfMessageBox.Show(
-                    "برنامه با موفقیت به استارتاپ ویندوز اضافه شد.",
-                    "استارتاپ",
+                    "بررسی یا تغییر اجرای خودکار با خطا روبه‌رو شد:\n" + ex.Message,
+                    "اجرای خودکار Calendra",
                     MessageBoxButton.OK,
-                    MessageBoxImage.Information);
+                    MessageBoxImage.Warning);
+            }
+        }
+
+        private void UpdateStartupButtonState()
+        {
+            bool isCurrentVersionRegistered =
+                IsCurrentExecutableRegisteredForStartup();
+
+            AddToStartupButton.Background = new SWM.SolidColorBrush(
+                isCurrentVersionRegistered
+                    ? SWM.Color.FromArgb(95, 52, 211, 153)
+                    : SWM.Color.FromArgb(50, 80, 200, 80));
+            AddToStartupButton.ToolTip = isCurrentVersionRegistered
+                ? "همین نسخه در اجرای خودکار فعال است؛ برای خارج‌کردن کلیک کنید"
+                : "افزودن همین نسخه برنامه به اجرای خودکار ویندوز";
+        }
+
+        private static bool IsCurrentExecutableRegisteredForStartup()
+        {
+            string? currentExecutablePath = Environment.ProcessPath;
+
+            if (string.IsNullOrWhiteSpace(currentExecutablePath))
+                return false;
+
+            using RegistryKey? runKey =
+                Registry.CurrentUser.OpenSubKey(RunRegistryPath, false);
+            string? startupCommand = runKey?.GetValue(RunValueName) as string;
+            string? registeredExecutablePath =
+                ExtractExecutablePath(startupCommand);
+
+            return AreSameExecutablePath(
+                currentExecutablePath,
+                registeredExecutablePath);
+        }
+
+        private static string? ExtractExecutablePath(string? startupCommand)
+        {
+            if (string.IsNullOrWhiteSpace(startupCommand))
+                return null;
+
+            string trimmedCommand = startupCommand.Trim();
+
+            if (trimmedCommand.StartsWith('"'))
+            {
+                int closingQuoteIndex = trimmedCommand.IndexOf('"', 1);
+
+                return closingQuoteIndex > 1
+                    ? trimmedCommand[1..closingQuoteIndex]
+                    : null;
+            }
+
+            int executableExtensionIndex = trimmedCommand.IndexOf(
+                ".exe",
+                StringComparison.OrdinalIgnoreCase);
+
+            if (executableExtensionIndex >= 0)
+            {
+                return trimmedCommand[..(executableExtensionIndex + 4)];
+            }
+
+            int firstSpaceIndex = trimmedCommand.IndexOf(' ');
+
+            return firstSpaceIndex > 0
+                ? trimmedCommand[..firstSpaceIndex]
+                : trimmedCommand;
+        }
+
+        private static bool AreSameExecutablePath(
+            string? firstPath,
+            string? secondPath)
+        {
+            if (string.IsNullOrWhiteSpace(firstPath) ||
+                string.IsNullOrWhiteSpace(secondPath))
+            {
+                return false;
+            }
+
+            try
+            {
+                string normalizedFirstPath = Path.GetFullPath(firstPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string normalizedSecondPath = Path.GetFullPath(secondPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                return string.Equals(
+                    normalizedFirstPath,
+                    normalizedSecondPath,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) when (
+                ex is ArgumentException or NotSupportedException or PathTooLongException)
+            {
+                return false;
             }
         }
 
@@ -1644,12 +1790,17 @@ namespace Calendra
                 RegistryValueKind.String);
         }
 
-        private static void DisableStartup()
+        private static bool DisableStartup()
         {
+            // اگر مقدار Registry به فایل دیگری اشاره کند، آن را دست‌کاری نکن.
+            if (!IsCurrentExecutableRegisteredForStartup())
+                return false;
+
             using RegistryKey? runKey =
                 Registry.CurrentUser.CreateSubKey(RunRegistryPath);
 
             runKey?.DeleteValue(RunValueName, false);
+            return true;
         }
 
         private void CalendarIconButton_Click(object sender, RoutedEventArgs e)

@@ -171,7 +171,7 @@
                                 Foreground="White"
                                 BorderThickness="0"/>
 
-                        <!-- دکمه آیکونی استارتاپ -->
+                        <!-- دکمه دوحالته اجرای خودکار -->
                         <Button x:Name="AddToStartupButton"
                                 Grid.Column="6"
                                 Width="20"
@@ -186,7 +186,7 @@
                                 BorderThickness="0"
                                 ToolTipService.ShowDuration="6000">
                             <Button.ToolTip>
-                                <ToolTip Content="افزودن برنامه به استارتاپ ویندوز (اجرای خودکار با شروع ویندوز)"/>
+                                <ToolTip Content="افزودن همین نسخه برنامه به اجرای خودکار ویندوز"/>
                             </Button.ToolTip>
                             <TextBlock Text="⚡" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </Button>
