@@ -3,6 +3,7 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -50,6 +51,7 @@ namespace Calendra
         };
 
         private readonly DispatcherTimer _timer;
+        private readonly DispatcherTimer _smartDisplayMonitorTimer;
         private readonly PersianCalendar _persianCalendar = new PersianCalendar();
 
         private const double ExpandedWidth = 300;
@@ -67,6 +69,10 @@ namespace Calendra
             DialogueDurationMilliseconds + FlightDurationMilliseconds;
         private const double HeroAnimationCanvasSize = 420;
         private const string ConfigFileName = "config.txt";
+        private static readonly TimeSpan SmartDisplayIdleThreshold =
+            TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan SmartDisplayDuration =
+            TimeSpan.FromSeconds(5);
 
         private const string AppRegistryPath = @"Software\Calendra";
         private const string RunRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
@@ -83,14 +89,29 @@ namespace Calendra
         private double _restoreLeft;
         private double _restoreTop;
         private MinimizeMode _selectedMinimizeMode = MinimizeMode.Random;
+        private bool _smartDateDisplayEnabled;
+        private bool _smartDisplayShownForCurrentIdlePeriod;
+        private bool _isSmartDatePreviewActive;
         private MinimizeMode? _lastRandomMode;
         private Window? _minimizeDialogueWindow;
         private Window? _finalToastWindow;
         private DispatcherTimer? _toastCloseTimer;
+        private DispatcherTimer? _smartPreviewCloseTimer;
         private Forms.NotifyIcon? _notifyIcon;
 
         private static string ConfigFilePath =>
             Path.Combine(AppContext.BaseDirectory, ConfigFileName);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct LastInputInfo
+        {
+            public uint Size;
+            public uint Time;
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetLastInputInfo(ref LastInputInfo lastInputInfo);
 
         private readonly string[] _persianMonthNames =
         {
@@ -155,8 +176,8 @@ namespace Calendra
         {
             InitializeComponent();
 
-            LoadOrCreateMinimizeConfig();
-            UpdateMinimizeSettingsUi();
+            LoadOrCreateConfig();
+            UpdateSettingsUi();
 
             _timer = new DispatcherTimer
             {
@@ -165,50 +186,91 @@ namespace Calendra
 
             _timer.Tick += Timer_Tick;
 
+            _smartDisplayMonitorTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(1)
+            };
+            _smartDisplayMonitorTimer.Tick += SmartDisplayMonitorTimer_Tick;
+
             // همیشه در حالت باز شده اجرا شود
             _isExpanded = true;
 
             InitializeTrayIcon();
         }
 
-        private void LoadOrCreateMinimizeConfig()
+        private void LoadOrCreateConfig()
         {
             try
             {
                 if (!File.Exists(ConfigFilePath))
                 {
                     _selectedMinimizeMode = MinimizeMode.Random;
-                    WriteMinimizeConfig();
+                    _smartDateDisplayEnabled = false;
+                    WriteConfig();
                     return;
                 }
 
-                string? configuredValue = null;
+                string? configuredMinimizeMode = null;
+                string? configuredSmartDateDisplay = null;
 
                 foreach (string line in File.ReadAllLines(ConfigFilePath))
                 {
-                    const string settingPrefix = "MinimizeMode=";
+                    const string minimizeModePrefix = "MinimizeMode=";
+                    const string smartDisplayPrefix = "SmartDateDisplayEnabled=";
 
-                    if (line.StartsWith(settingPrefix, StringComparison.OrdinalIgnoreCase))
+                    if (line.StartsWith(
+                        minimizeModePrefix,
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        configuredValue = line[settingPrefix.Length..].Trim();
-                        break;
+                        configuredMinimizeMode =
+                            line[minimizeModePrefix.Length..].Trim();
+                    }
+                    else if (line.StartsWith(
+                        smartDisplayPrefix,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        configuredSmartDateDisplay =
+                            line[smartDisplayPrefix.Length..].Trim();
                     }
                 }
 
-                if (configuredValue != null &&
-                    Enum.TryParse(configuredValue, true, out MinimizeMode parsedMode) &&
+                bool configNeedsMigration = false;
+
+                if (configuredMinimizeMode != null &&
+                    Enum.TryParse(
+                        configuredMinimizeMode,
+                        true,
+                        out MinimizeMode parsedMode) &&
                     Enum.IsDefined(parsedMode))
                 {
                     _selectedMinimizeMode = parsedMode;
-                    return;
+                }
+                else
+                {
+                    _selectedMinimizeMode = MinimizeMode.Random;
+                    configNeedsMigration = true;
                 }
 
-                _selectedMinimizeMode = MinimizeMode.Random;
-                WriteMinimizeConfig();
+                if (configuredSmartDateDisplay != null &&
+                    bool.TryParse(
+                        configuredSmartDateDisplay,
+                        out bool smartDateDisplayEnabled))
+                {
+                    _smartDateDisplayEnabled = smartDateDisplayEnabled;
+                }
+                else
+                {
+                    _smartDateDisplayEnabled = false;
+                    configNeedsMigration = true;
+                }
+
+                if (configNeedsMigration)
+                    WriteConfig();
             }
             catch (Exception ex)
             {
                 _selectedMinimizeMode = MinimizeMode.Random;
+                _smartDateDisplayEnabled = false;
 
                 WpfMessageBox.Show(
                     $"امکان خواندن یا ساخت {ConfigFileName} کنار برنامه وجود ندارد:\n{ex.Message}",
@@ -218,11 +280,11 @@ namespace Calendra
             }
         }
 
-        private void SaveMinimizeConfig()
+        private void SaveConfig()
         {
             try
             {
-                WriteMinimizeConfig();
+                WriteConfig();
             }
             catch (Exception ex)
             {
@@ -234,15 +296,17 @@ namespace Calendra
             }
         }
 
-        private void WriteMinimizeConfig()
+        private void WriteConfig()
         {
             File.WriteAllText(
                 ConfigFilePath,
-                $"MinimizeMode={_selectedMinimizeMode}{Environment.NewLine}");
+                $"MinimizeMode={_selectedMinimizeMode}{Environment.NewLine}" +
+                $"SmartDateDisplayEnabled={_smartDateDisplayEnabled}{Environment.NewLine}");
         }
 
-        private void UpdateMinimizeSettingsUi()
+        private void UpdateSettingsUi()
         {
+            SmartDateDisplayCheckBox.IsChecked = _smartDateDisplayEnabled;
             RandomModeRadio.IsChecked = _selectedMinimizeMode == MinimizeMode.Random;
             HeartbrokenHeroModeRadio.IsChecked =
                 _selectedMinimizeMode == MinimizeMode.HeartbrokenHero;
@@ -264,6 +328,7 @@ namespace Calendra
             ExpandFromRightSide();
 
             _timer.Start();
+            _smartDisplayMonitorTimer.Start();
 
             Dispatcher.BeginInvoke(
                 new Action(AskStartupQuestionFirstTime),
@@ -278,6 +343,106 @@ namespace Calendra
             {
                 UpdateLayoutForCurrentMode();
             }
+        }
+
+        private void SmartDisplayMonitorTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!_smartDateDisplayEnabled)
+            {
+                _smartDisplayShownForCurrentIdlePeriod = false;
+                return;
+            }
+
+            TimeSpan? idleTime = GetSystemIdleTime();
+
+            if (idleTime == null || idleTime < SmartDisplayIdleThreshold)
+            {
+                _smartDisplayShownForCurrentIdlePeriod = false;
+                return;
+            }
+
+            if (_smartDisplayShownForCurrentIdlePeriod ||
+                _isSmartDatePreviewActive ||
+                _isExpanded ||
+                _isAnimatingToTray ||
+                !IsVisible ||
+                WindowState != WindowState.Normal)
+            {
+                return;
+            }
+
+            ShowSmartDatePreview();
+        }
+
+        private void ShowSmartDatePreview()
+        {
+            _isSmartDatePreviewActive = true;
+            _smartDisplayShownForCurrentIdlePeriod = true;
+
+            UpdateDates();
+            ExpandAtCurrentPosition();
+
+            _smartPreviewCloseTimer?.Stop();
+            _smartPreviewCloseTimer = new DispatcherTimer
+            {
+                Interval = SmartDisplayDuration
+            };
+            _smartPreviewCloseTimer.Tick += SmartPreviewCloseTimer_Tick;
+            _smartPreviewCloseTimer.Start();
+        }
+
+        private void SmartPreviewCloseTimer_Tick(object? sender, EventArgs e)
+        {
+            _smartPreviewCloseTimer?.Stop();
+            _smartPreviewCloseTimer = null;
+
+            if (!_isSmartDatePreviewActive)
+                return;
+
+            _isSmartDatePreviewActive = false;
+
+            if (IsVisible &&
+                WindowState == WindowState.Normal &&
+                _isExpanded &&
+                !_isAnimatingToTray)
+            {
+                CollapseAtCurrentPosition();
+            }
+        }
+
+        private void CancelSmartDatePreview(bool collapseIfExpanded)
+        {
+            bool wasSmartPreviewActive = _isSmartDatePreviewActive;
+
+            _isSmartDatePreviewActive = false;
+            _smartPreviewCloseTimer?.Stop();
+            _smartPreviewCloseTimer = null;
+
+            if (wasSmartPreviewActive &&
+                collapseIfExpanded &&
+                IsVisible &&
+                WindowState == WindowState.Normal &&
+                _isExpanded &&
+                !_isAnimatingToTray)
+            {
+                CollapseAtCurrentPosition();
+            }
+        }
+
+        private static TimeSpan? GetSystemIdleTime()
+        {
+            LastInputInfo lastInputInfo = new LastInputInfo
+            {
+                Size = (uint)Marshal.SizeOf<LastInputInfo>()
+            };
+
+            if (!GetLastInputInfo(ref lastInputInfo))
+                return null;
+
+            uint elapsedMilliseconds = unchecked(
+                (uint)Environment.TickCount - lastInputInfo.Time);
+
+            return TimeSpan.FromMilliseconds(elapsedMilliseconds);
         }
 
         private void UpdateDates()
@@ -444,6 +609,8 @@ namespace Calendra
 
         private void ToggleVisibility()
         {
+            CancelSmartDatePreview(false);
+
             if (_isExpanded)
                 CollapseAtCurrentPosition();
             else
@@ -468,6 +635,9 @@ namespace Calendra
 
             Closed += (_, _) =>
             {
+                _timer.Stop();
+                _smartDisplayMonitorTimer.Stop();
+                _smartPreviewCloseTimer?.Stop();
                 CloseMinimizeDialogueWindow();
                 CloseFinalToastWindow();
                 _notifyIcon.Visible = false;
@@ -641,8 +811,23 @@ namespace Calendra
 
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
         {
-            UpdateMinimizeSettingsUi();
+            UpdateSettingsUi();
             SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+        }
+
+        private void SmartDateDisplayCheckBox_Click(object sender, RoutedEventArgs e)
+        {
+            _smartDateDisplayEnabled =
+                SmartDateDisplayCheckBox.IsChecked == true;
+
+            if (!_smartDateDisplayEnabled)
+            {
+                _smartDisplayShownForCurrentIdlePeriod = false;
+                CancelSmartDatePreview(true);
+            }
+
+            UpdateSettingsUi();
+            SaveConfig();
         }
 
         private void MinimizeModeRadio_Click(object sender, RoutedEventArgs e)
@@ -656,8 +841,8 @@ namespace Calendra
             }
 
             _selectedMinimizeMode = selectedMode;
-            UpdateMinimizeSettingsUi();
-            SaveMinimizeConfig();
+            UpdateSettingsUi();
+            SaveConfig();
             SettingsPopup.IsOpen = false;
         }
 
@@ -743,6 +928,7 @@ namespace Calendra
 
         private void Minimize_Click(object sender, RoutedEventArgs e)
         {
+            CancelSmartDatePreview(false);
             AnimateToTray();
         }
 
@@ -778,6 +964,7 @@ namespace Calendra
 
         private void HideToTray()
         {
+            CancelSmartDatePreview(false);
             _stateBeforeMinimize = _isExpanded;
             Hide();
         }
@@ -1265,7 +1452,7 @@ namespace Calendra
                 SWM.Color.FromRgb(71, 85, 105),
                 false);
             Button settingsToastButton = CreateToastButton(
-                "تنظیم شوخی‌ها ⚙",
+                "تنظیمات Calendra ⚙",
                 secondaryColor,
                 false);
             buttonPanel.Children.Add(restoreButton);
@@ -1319,7 +1506,7 @@ namespace Calendra
 
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    UpdateMinimizeSettingsUi();
+                    UpdateSettingsUi();
                     SettingsPopup.IsOpen = true;
                 }), DispatcherPriority.ApplicationIdle);
             };
@@ -1458,6 +1645,10 @@ namespace Calendra
 
         private void Window_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            // تعامل مستقیم کاربر، نمایش موقت را به نمایش عادی تبدیل می‌کند
+            // تا ویجت هنگام کار با آن ناگهان بسته نشود.
+            CancelSmartDatePreview(false);
+
             _bodyDragCandidate = false;
             _suppressBodyClick = false;
 
